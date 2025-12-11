@@ -1,69 +1,146 @@
+
+# DS276 – CWUR Asia vs Europe Analysis & Visualisation
+# RQ: "Is there a significant difference in the mean CWUR
+#      score between universities in Asia and Europe?"
+
+
+## 1. Load dataset 
+
 cwur <- read.csv("cwurData.csv")
 
-if (!dir.exists("outputs")) {
-  dir.create("outputs")
-}
+head(cwur)
+str(cwur)
 
-cwur_subset <- cwur[ , c("world_rank", "institution", "country",
-                         "publications", "score", "year")]
 
-head(cwur_subset, 5)
-nrow(cwur)
+## 2. Create Region variable: Asia vs Europe 
 
-score_mean <- mean(cwur$score, na.rm = TRUE)
-score_sd   <- sd(cwur$score, na.rm = TRUE)
+asia_countries <- c(
+  "Japan", "Israel", "South Korea", "Singapore", "China",
+  "Taiwan", "Hong Kong", "Thailand", "Malaysia", "India",
+  "Turkey", "Saudi Arabia", "Iran", "Lebanon", "United Arab Emirates"
+)
 
-plot(cwur$publications, cwur$score,
-     main = "Scatterplot of Score vs Publications",
-     xlab = "Publications",
-     ylab = "Score")
-abline(lm(score ~ publications, data = cwur),
-       col = "red", lwd = 2)
+europe_countries <- c(
+  "United Kingdom", "Switzerland", "France", "Sweden", "Italy",
+  "Germany", "Netherlands", "Finland", "Norway", "Denmark",
+  "Belgium", "Spain", "Ireland", "Austria", "Portugal",
+  "Czech Republic", "Greece", "Hungary", "Poland", "Iceland",
+  "Slovenia", "Estonia", "Croatia", "Slovak Republic",
+  "Bulgaria", "Lithuania", "Romania", "Cyprus", "Serbia"
+)
 
-png("outputs/slide4_scatter_score_publications.png",
-    width = 900, height = 650)
-plot(cwur$publications, cwur$score,
-     main = "Scatterplot of Score vs Publications",
-     xlab = "Publications",
-     ylab = "Score")
-abline(lm(score ~ publications, data = cwur),
-       col = "red", lwd = 2)
-dev.off()
+cwur$Region <- NA
+cwur$Region[cwur$country %in% asia_countries]   <- "Asia"
+cwur$Region[cwur$country %in% europe_countries] <- "Europe"
 
-hist(cwur$score,
-     breaks = 30,
+asia_europe <- subset(cwur,
+                      Region %in% c("Asia", "Europe") &
+                        !is.na(score))
+
+asia_europe$Region <- factor(asia_europe$Region,
+                             levels = c("Asia", "Europe"))
+
+table(asia_europe$Region)
+head(asia_europe)
+
+
+## 3. VISUALISATION 1 – Boxplot 
+
+boxplot(score ~ Region,
+        data = asia_europe,
+        main = "CWUR Score by Region (Asia vs Europe)",
+        xlab = "Region",
+        ylab = "CWUR Score (index)",
+        col  = c("lightblue", "lightgreen"))
+
+
+## 4. VISUALISATION 2 – Histogram + Normal Curve 
+
+hist(asia_europe$score,
+     breaks = 20,
      freq   = FALSE,
-     main   = "Histogram of Score with Normal Curve",
-     xlab   = "Score")
-curve(dnorm(x, mean = score_mean, sd = score_sd),
-      add = TRUE, col = "blue", lwd = 2)
+     main   = "Distribution of CWUR Scores (Asia and Europe)",
+     xlab   = "CWUR Score (index)",
+     ylab   = "Density")
 
-png("outputs/slide5_hist_score.png", width = 800, height = 600)
-hist(cwur$score,
-     breaks = 30,
-     freq   = FALSE,
-     main   = "Histogram of Score with Normal Curve",
-     xlab   = "Score")
-curve(dnorm(x, mean = score_mean, sd = score_sd),
-      add = TRUE, col = "blue", lwd = 2)
-dev.off()
+x_vals <- seq(min(asia_europe$score, na.rm = TRUE),
+              max(asia_europe$score, na.rm = TRUE),
+              length.out = 200)
 
-set.seed(123)
-score_sample <- sample(cwur$score, 500)
-shapiro_result <- shapiro.test(score_sample)
+lines(x_vals,
+      dnorm(x_vals,
+            mean = mean(asia_europe$score, na.rm = TRUE),
+            sd   = sd(asia_europe$score,   na.rm = TRUE)))
 
-cor_test_spearman <- cor.test(cwur$score,
-                              cwur$publications,
-                              method = "spearman",
-                              use    = "complete.obs")
 
-spearman_rho <- cor_test_spearman$estimate
-spearman_p   <- cor_test_spearman$p.value
+## 5. Summary statistics table -----------------------------------------------
 
-spearman_rho
-spearman_p
+mean_by_region   <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           mean,   na.rm = TRUE)
 
-sink("outputs/slide6_correlation_results.txt")
-print(shapiro_result)
-print(cor_test_spearman)
-sink()
+median_by_region <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           median, na.rm = TRUE)
+
+sd_by_region     <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           sd,     na.rm = TRUE)
+
+min_by_region    <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           min,    na.rm = TRUE)
+
+max_by_region    <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           max,    na.rm = TRUE)
+
+n_by_region      <- tapply(asia_europe$score,
+                           asia_europe$Region,
+                           length)
+
+summary_table <- data.frame(
+  Region       = names(mean_by_region),
+  Mean_Score   = as.numeric(mean_by_region),
+  Median_Score = as.numeric(median_by_region),
+  SD_Score     = as.numeric(sd_by_region),
+  Min_Score    = as.numeric(min_by_region),
+  Max_Score    = as.numeric(max_by_region),
+  Count        = as.numeric(n_by_region)
+)
+
+summary_table
+
+
+## 6. Normality test 
+
+shapiro_result <- shapiro.test(asia_europe$score)
+shapiro_result
+
+
+## 7. Statistical tests 
+
+# Independent samples t-test (if distribution approximately normal)
+t_test_result <- t.test(score ~ Region, data = asia_europe)
+t_test_result
+
+t_test_table <- data.frame(
+  Test      = "Independent t-test",
+  Statistic = as.numeric(t_test_result$statistic),
+  p_value   = t_test_result$p.value
+)
+
+t_test_table
+
+# Wilcoxon Rank-Sum test (if non-normal distribution)
+wilcox_result <- wilcox.test(score ~ Region, data = asia_europe)
+wilcox_result
+
+wilcox_table <- data.frame(
+  Test      = "Wilcoxon Rank-Sum",
+  Statistic = as.numeric(wilcox_result$statistic),
+  p_value   = wilcox_result$p.value
+)
+
+wilcox_table
+
