@@ -1,128 +1,81 @@
-# DS276 – CWUR Asia vs Europe Analysis & Visualisation
-# Research Question:
-# "Is there a significant difference in the mean CWUR score between universities in Asia and Europe?"
+# ---------------------------
+# 7COM1079 Final Report – R Code (RStudio)
+# RQ: Is there a difference in the mean CWUR Score between universities in Asia and Europe?
+# ---------------------------
 
-# 1. Load dataset
-cwur <- read.csv("cwurData.csv")
+# Step 1 – Load required libraries (all part of tidyverse)
+library(ggplot2)
+library(dplyr)
+library(readr)
 
-head(cwur)
-str(cwur)
+# Step 2 – Load the dataset
+cwur <- read_csv("cwurData.csv")
 
-# 2. Create Region variable (Asia vs Europe)
-asia_countries <- c(
-  "Japan", "Israel", "South Korea", "Singapore", "China",
-  "Taiwan", "Hong Kong", "Thailand", "Malaysia", "India",
-  "Turkey", "Saudi Arabia", "Iran", "Lebanon", "United Arab Emirates"
-)
+# Step 3 – Define region groupings
+asia_countries <- c("China", "India", "Japan", "South Korea", "Singapore", "Israel",
+                    "Turkey", "Iran", "Saudi Arabia", "Taiwan", "Malaysia", "Indonesia",
+                    "Thailand", "Pakistan")
 
-europe_countries <- c(
-  "United Kingdom", "Switzerland", "France", "Sweden", "Italy",
-  "Germany", "Netherlands", "Finland", "Norway", "Denmark",
-  "Belgium", "Spain", "Ireland", "Austria", "Portugal",
-  "Czech Republic", "Greece", "Hungary", "Poland", "Iceland",
-  "Slovenia", "Estonia", "Croatia", "Slovak Republic",
-  "Bulgaria", "Lithuania", "Romania", "Cyprus", "Serbia"
-)
+europe_countries <- c("United Kingdom", "Germany", "France", "Italy", "Spain", "Netherlands",
+                      "Sweden", "Switzerland", "Belgium", "Denmark", "Finland", "Austria",
+                      "Norway", "Poland", "Greece")
 
-cwur$Region <- NA
-cwur$Region[cwur$country %in% asia_countries]   <- "Asia"
-cwur$Region[cwur$country %in% europe_countries] <- "Europe"
+# Step 4 – Add Region column and filter only Asia and Europe
+cwur <- cwur %>%
+  mutate(Region = case_when(
+    country %in% asia_countries ~ "Asia",
+    country %in% europe_countries ~ "Europe",
+    TRUE ~ "Other"
+  )) %>%
+  filter(Region %in% c("Asia", "Europe"))
 
-asia_europe <- subset(cwur,
-                      Region %in% c("Asia", "Europe") &
-                        !is.na(score))
+# Step 5 – Create output folder
+if (!dir.exists("outputs")) dir.create("outputs")
 
-asia_europe$Region <- factor(asia_europe$Region,
-                             levels = c("Asia", "Europe"))
+# Step 6 – Boxplot: CWUR Score by Region (white background)
+box <- ggplot(cwur, aes(x = Region, y = score, fill = Region)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 1) +
+  labs(title = "Boxplot of CWUR Scores by Region",
+       x = "Region",
+       y = "CWUR Score") +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA)
+  )
 
-table(asia_europe$Region)
-head(asia_europe)
+ggsave("outputs/boxplot.png", plot = box, width = 7, height = 5)
 
-# Create filtered dataset for cleaner boxplot (visualisation only)
-plot_data <- subset(asia_europe, score < 60)
+# Step 7 – Histogram with normal curve overlay (dependent variable only)
+hist <- ggplot(cwur, aes(x = score)) +
+  geom_histogram(aes(y = ..density..),
+                 bins = 30,
+                 fill = "skyblue",
+                 color = "white") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(cwur$score),
+                            sd   = sd(cwur$score)),
+                color = "blue",
+                linewidth = 1.2) +
+  labs(title = "Histogram of CWUR Scores (Asia & Europe)",
+       x = "CWUR Score",
+       y = "Density") +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA)
+  )
 
-# 3. Boxplot (visualising the comparison)
-boxplot(score ~ Region,
-        data    = plot_data,
-        main    = "CWUR Score by Region (Asia vs Europe)",
-        xlab    = "Region",
-        ylab    = "CWUR Score (index)",
-        col     = c("grey80", "lightgreen"),
-        border  = "black",
-        notch   = TRUE,
-        ylim    = c(40, 60),
-        outline = TRUE,
-        cex.lab = 1.2,
-        cex.axis= 1.1,
-        cex.main= 1.3)
+ggsave("outputs/histogram.png", plot = hist, width = 7, height = 5)
 
-# 4. Histogram with normal curve (required supplementary graphic)
-hist(asia_europe$score,
-     breaks = 30,
-     freq   = FALSE,
-     main   = "Distribution of CWUR Scores (Asia and Europe)",
-     xlab   = "CWUR Score (index)",
-     ylab   = "Density",
-     cex.lab = 1.2,
-     cex.axis= 1.1,
-     cex.main= 1.3)
+# Step 8 – Mann-Whitney U test (Wilcoxon rank-sum) for difference between regions
+# Chosen because the histogram + normal curve suggest non-normal distribution.
+test_used   <- "Mann-Whitney U Test (Wilcoxon rank-sum)"
+test_result <- wilcox.test(score ~ Region, data = cwur)
 
-x_vals <- seq(min(asia_europe$score, na.rm = TRUE),
-              max(asia_europe$score, na.rm = TRUE),
-              length.out = 200)
-
-lines(x_vals,
-      dnorm(x_vals,
-            mean = mean(asia_europe$score, na.rm = TRUE),
-            sd   = sd(asia_europe$score,   na.rm = TRUE)))
-
-# 5. Summary statistics table
-mean_by_region   <- tapply(asia_europe$score, asia_europe$Region, mean,   na.rm = TRUE)
-median_by_region <- tapply(asia_europe$score, asia_europe$Region, median, na.rm = TRUE)
-sd_by_region     <- tapply(asia_europe$score, asia_europe$Region, sd,     na.rm = TRUE)
-min_by_region    <- tapply(asia_europe$score, asia_europe$Region, min,    na.rm = TRUE)
-max_by_region    <- tapply(asia_europe$score, asia_europe$Region, max,    na.rm = TRUE)
-n_by_region      <- tapply(asia_europe$score, asia_europe$Region, length)
-
-summary_table <- data.frame(
-  Region       = names(mean_by_region),
-  Mean_Score   = as.numeric(mean_by_region),
-  Median_Score = as.numeric(median_by_region),
-  SD_Score     = as.numeric(sd_by_region),
-  Min_Score    = as.numeric(min_by_region),
-  Max_Score    = as.numeric(max_by_region),
-  Count        = as.numeric(n_by_region)
-)
-
-summary_table
-
-# 6. Normality test
-shapiro_result <- shapiro.test(asia_europe$score)
-shapiro_result
-
-# 7. Statistical tests
-# Independent samples t-test (if distribution approximately normal)
-t_test_result <- t.test(score ~ Region, data = asia_europe)
-t_test_result
-
-t_test_table <- data.frame(
-  Test      = "Independent t-test",
-  Statistic = as.numeric(t_test_result$statistic),
-  p_value   = t_test_result$p.value
-)
-
-t_test_table
-
-# Wilcoxon Rank-Sum test (if non-normal distribution)
-wilcox_result <- wilcox.test(score ~ Region, data = asia_europe)
-wilcox_result
-
-wilcox_table <- data.frame(
-  Test      = "Wilcoxon Rank-Sum",
-  Statistic = as.numeric(wilcox_result$statistic),
-  p_value   = wilcox_result$p.value
-)
-
-wilcox_table
-
-# END OF SCRIPT
+# Step 9 – Save test results to text file
+sink("outputs/test_results.txt")
+cat("Statistical Test Used:", test_used, "\n")
+cat("Test Statistic:", test_result$statistic, "\n")
+cat("P-value:", test_result$p.value, "\n")
+sink()
