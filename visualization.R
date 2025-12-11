@@ -1,19 +1,14 @@
-
 # DS276 – CWUR Asia vs Europe Analysis & Visualisation
-# RQ: "Is there a significant difference in the mean CWUR
-#      score between universities in Asia and Europe?"
+# Research Question:
+# "Is there a significant difference in the mean CWUR score between universities in Asia and Europe?"
 
-
-## 1. Load dataset 
-
+# 1. Load dataset
 cwur <- read.csv("cwurData.csv")
 
 head(cwur)
 str(cwur)
 
-
-## 2. Create Region variable: Asia vs Europe 
-
+# 2. Create Region variable (Asia vs Europe)
 asia_countries <- c(
   "Japan", "Israel", "South Korea", "Singapore", "China",
   "Taiwan", "Hong Kong", "Thailand", "Malaysia", "India",
@@ -43,25 +38,34 @@ asia_europe$Region <- factor(asia_europe$Region,
 table(asia_europe$Region)
 head(asia_europe)
 
+# Create filtered dataset for cleaner boxplot (visualisation only)
+plot_data <- subset(asia_europe, score < 60)
 
-## 3. VISUALISATION 1 – Boxplot 
-
+# 3. Boxplot (visualising the comparison)
 boxplot(score ~ Region,
-        data = asia_europe,
-        main = "CWUR Score by Region (Asia vs Europe)",
-        xlab = "Region",
-        ylab = "CWUR Score (index)",
-        col  = c("lightblue", "lightgreen"))
+        data    = plot_data,
+        main    = "CWUR Score by Region (Asia vs Europe)",
+        xlab    = "Region",
+        ylab    = "CWUR Score (index)",
+        col     = c("grey80", "lightgreen"),
+        border  = "black",
+        notch   = TRUE,
+        ylim    = c(40, 60),
+        outline = TRUE,
+        cex.lab = 1.2,
+        cex.axis= 1.1,
+        cex.main= 1.3)
 
-
-## 4. VISUALISATION 2 – Histogram + Normal Curve 
-
+# 4. Histogram with normal curve (required supplementary graphic)
 hist(asia_europe$score,
-     breaks = 20,
+     breaks = 30,
      freq   = FALSE,
      main   = "Distribution of CWUR Scores (Asia and Europe)",
      xlab   = "CWUR Score (index)",
-     ylab   = "Density")
+     ylab   = "Density",
+     cex.lab = 1.2,
+     cex.axis= 1.1,
+     cex.main= 1.3)
 
 x_vals <- seq(min(asia_europe$score, na.rm = TRUE),
               max(asia_europe$score, na.rm = TRUE),
@@ -72,32 +76,13 @@ lines(x_vals,
             mean = mean(asia_europe$score, na.rm = TRUE),
             sd   = sd(asia_europe$score,   na.rm = TRUE)))
 
-
-## 5. Summary statistics table -----------------------------------------------
-
-mean_by_region   <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           mean,   na.rm = TRUE)
-
-median_by_region <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           median, na.rm = TRUE)
-
-sd_by_region     <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           sd,     na.rm = TRUE)
-
-min_by_region    <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           min,    na.rm = TRUE)
-
-max_by_region    <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           max,    na.rm = TRUE)
-
-n_by_region      <- tapply(asia_europe$score,
-                           asia_europe$Region,
-                           length)
+# 5. Summary statistics table
+mean_by_region   <- tapply(asia_europe$score, asia_europe$Region, mean,   na.rm = TRUE)
+median_by_region <- tapply(asia_europe$score, asia_europe$Region, median, na.rm = TRUE)
+sd_by_region     <- tapply(asia_europe$score, asia_europe$Region, sd,     na.rm = TRUE)
+min_by_region    <- tapply(asia_europe$score, asia_europe$Region, min,    na.rm = TRUE)
+max_by_region    <- tapply(asia_europe$score, asia_europe$Region, max,    na.rm = TRUE)
+n_by_region      <- tapply(asia_europe$score, asia_europe$Region, length)
 
 summary_table <- data.frame(
   Region       = names(mean_by_region),
@@ -111,15 +96,11 @@ summary_table <- data.frame(
 
 summary_table
 
-
-## 6. Normality test 
-
+# 6. Normality test
 shapiro_result <- shapiro.test(asia_europe$score)
 shapiro_result
 
-
-## 7. Statistical tests 
-
+# 7. Statistical tests
 # Independent samples t-test (if distribution approximately normal)
 t_test_result <- t.test(score ~ Region, data = asia_europe)
 t_test_result
@@ -144,3 +125,4 @@ wilcox_table <- data.frame(
 
 wilcox_table
 
+# END OF SCRIPT
