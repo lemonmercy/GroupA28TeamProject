@@ -29,3 +29,30 @@ europe_countries <- c(
   "Slovenia", "Estonia", "Croatia", "Slovak Republic",
   "Bulgaria", "Lithuania", "Romania", "Cyprus", "Serbia"
 )
+
+# 3. Create Region variable and filter to Asia/Europe with valid scores
+# ---------------------------
+asia_europe <- cwur %>%
+  mutate(
+    Region = case_when(
+      country %in% asia_countries   ~ "Asia",
+      country %in% europe_countries ~ "Europe",
+      TRUE                          ~ NA_character_
+    )
+  ) %>%
+  filter(
+    Region %in% c("Asia", "Europe"),
+    !is.na(score)
+  )
+
+# Make Region an ordered factor (Asia, then Europe)
+asia_europe$Region <- factor(asia_europe$Region,
+                             levels = c("Asia", "Europe"))
+
+# Quick check of sample sizes
+print(table(asia_europe$Region))
+
+# ---------------------------
+# 4. Create outputs folder (if it does not exist)
+# ---------------------------
+if (!dir.exists("outputs")) dir.create("outputs")
